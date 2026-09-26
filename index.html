@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>مذكّر الديون</title>
+<meta name="description" content="إدارة ديون الزبائن وإرسال تذكيرات واتساب لأصحاب المحلات والأعمال الصغيرة">
+<meta name="theme-color" content="#0f766e">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="مذكّر الديون">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- شاشة القفل -->
+<div id="lockScreen" class="lock-screen hidden">
+  <div class="lock-box">
+    <div class="lock-logo">🔒</div>
+    <h2>مذكّر الديون</h2>
+    <p>أدخل رمز PIN لفتح التطبيق</p>
+    <div id="pinDots" class="pin-dots">
+      <span></span><span></span><span></span><span></span>
+    </div>
+    <div id="pinError" class="pin-error hidden">رمز غير صحيح، حاول مجددًا</div>
+    <div class="pin-pad">
+      <button class="pin-key" data-key="1">1</button>
+      <button class="pin-key" data-key="2">2</button>
+      <button class="pin-key" data-key="3">3</button>
+      <button class="pin-key" data-key="4">4</button>
+      <button class="pin-key" data-key="5">5</button>
+      <button class="pin-key" data-key="6">6</button>
+      <button class="pin-key" data-key="7">7</button>
+      <button class="pin-key" data-key="8">8</button>
+      <button class="pin-key" data-key="9">9</button>
+      <button class="pin-key ghost" data-key="clear">مسح</button>
+      <button class="pin-key" data-key="0">0</button>
+      <button class="pin-key ghost" data-key="back">⌫</button>
+    </div>
+  </div>
+</div>
+
+<div id="appRoot" class="app-root hidden">
+
+  <!-- الهيدر -->
+  <header class="app-header">
+    <button id="btnBack" class="icon-btn hidden" aria-label="رجوع">➜</button>
+    <h1 id="pageTitle">مذكّر الديون</h1>
+    <div class="header-actions">
+      <button id="btnTheme" class="icon-btn" title="الوضع الليلي" aria-label="تبديل المظهر">🌙</button>
+    </div>
+  </header>
+
+  <!-- بانر التذكيرات المستحقة اليوم -->
+  <div id="dueBanner" class="due-banner hidden">
+    <span id="dueBannerText"></span>
+    <button id="dueBannerBtn" class="btn-mini">عرض</button>
+  </div>
+
+  <main id="mainContent" class="main-content">
+
+    <!-- ==================== لوحة التحكم ==================== -->
+    <section id="page-dashboard" class="page">
+      <div class="stats-grid">
+        <div class="stat-card teal">
+          <span class="stat-label">إجمالي الديون</span>
+          <span class="stat-value" id="statTotalDebt">0 د.ع</span>
+        </div>
+        <div class="stat-card blue">
+          <span class="stat-label">عدد الزبائن المدينين</span>
+          <span class="stat-value" id="statDebtorsCount">0</span>
+        </div>
+        <div class="stat-card amber">
+          <span class="stat-label">مستحقة اليوم</span>
+          <span class="stat-value" id="statDueToday">0</span>
+        </div>
+        <div class="stat-card red">
+          <span class="stat-label">متأخرة</span>
+          <span class="stat-value" id="statOverdue">0</span>
+        </div>
+        <div class="stat-card green">
+          <span class="stat-label">إجمالي المسدد</span>
+          <span class="stat-value" id="statTotalPaid">0 د.ع</span>
+        </div>
+        <div class="stat-card purple">
+          <span class="stat-label">رسائل مرسلة</span>
+          <span class="stat-value" id="statRemindersSent">0</span>
+        </div>
+      </div>
+
+      <div class="action-row">
+        <button class="btn-primary" id="btnDashAddDebt">+ إضافة دين</button>
+        <button class="btn-secondary" id="btnDashAddCustomer">+ إضافة زبون</button>
+        <button class="btn-outline" id="btnDashSendReminders">📤 إرسال التذكيرات</button>
+      </div>
+
+      <h3 class="section-title">أكثر الزبائن تأخرًا بالدفع</h3>
+      <div id="topOverdueList" class="list-container"></div>
+    </section>
+
+    <!-- ==================== الزبائن ==================== -->
+    <section id="page-customers" class="page hidden">
+      <div class="toolbar">
+        <input type="search" id="customerSearch" class="input" placeholder="🔍 بحث عن زبون بالاسم أو الهاتف">
+        <div class="toolbar-row">
+          <select id="customerStatusFilter" class="select">
+            <option value="all">كل الحالات</option>
+            <option value="مستحق">مستحق</option>
+            <option value="متأخر">متأخر</option>
+            <option value="مسدد">مسدد</option>
+          </select>
+          <select id="customerSort" class="select">
+            <option value="name">ترتيب: الاسم</option>
+            <option value="amount">ترتيب: المبلغ المتبقي</option>
+            <option value="dueDate">ترتيب: تاريخ الاستحقاق</option>
+          </select>
+        </div>
+      </div>
+      <div id="customersList" class="list-container"></div>
+      <button class="fab" id="fabAddCustomer" title="إضافة زبون">+</button>
+    </section>
+
+    <!-- ==================== تفاصيل الزبون ==================== -->
+    <section id="page-customer-detail" class="page hidden">
+      <div class="detail-card" id="customerDetailCard"></div>
+
+      <div class="action-row">
+        <button class="btn-primary" id="btnRecordPayment">+ تسجيل دفعة</button>
+        <button class="btn-whatsapp" id="btnSendWhatsappDetail">📱 إرسال واتساب</button>
+      </div>
+
+      <div class="action-row">
+        <button class="btn-outline" id="btnAddDebtToCustomer">+ إضافة دين لهذا الزبون</button>
+        <button class="btn-danger-outline" id="btnDeleteCustomer">حذف الزبون</button>
+      </div>
+
+      <h3 class="section-title">سجل الدفعات</h3>
+      <div id="paymentsHistory" class="list-container"></div>
+    </section>
+
+    <!-- ==================== الديون ==================== -->
+    <section id="page-debts" class="page hidden">
+      <div class="toolbar">
+        <div class="toolbar-row">
+          <select id="debtsStatusFilter" class="select">
+            <option value="active">الديون النشطة (غير مسددة)</option>
+            <option value="all">كل الديون</option>
+            <option value="متأخر">المتأخرة فقط</option>
+            <option value="مستحق">المستحقة فقط</option>
+            <option value="مسدد">المسددة فقط</option>
+          </select>
+          <select id="debtsSort" class="select">
+            <option value="dueDate">ترتيب: تاريخ الاستحقاق</option>
+            <option value="amount">ترتيب: المبلغ</option>
+          </select>
+        </div>
+      </div>
+      <div id="debtsList" class="list-container"></div>
+    </section>
+
+    <!-- ==================== التذكيرات (الرئيسية للقسم) ==================== -->
+    <section id="page-reminders" class="page hidden">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="bulk">تذكيرات جماعية</button>
+        <button class="tab-btn" data-tab="log">سجل الرسائل</button>
+        <button class="tab-btn" data-tab="template">قالب الرسالة</button>
+        <button class="tab-btn" data-tab="auto">التذكير التلقائي</button>
+      </div>
+
+      <!-- تذكيرات جماعية -->
+      <div id="tab-bulk" class="tab-pane">
+        <label class="select-all-row">
+          <input type="checkbox" id="selectAllCustomers">
+          <span>تحديد الكل</span>
+        </label>
+        <div id="bulkCustomersList" class="list-container"></div>
+        <button class="btn-whatsapp full-width" id="btnSendBulk">📤 إرسال التذكيرات</button>
+      </div>
+
+      <!-- سجل الرسائل -->
+      <div id="tab-log" class="tab-pane hidden">
+        <div id="remindersLogList" class="list-container"></div>
+      </div>
+
+      <!-- قالب الرسالة -->
+      <div id="tab-template" class="tab-pane hidden">
+        <label class="field-label">قالب رسالة التذكير</label>
+        <textarea id="templateText" class="textarea" rows="8"></textarea>
+        <p class="hint">المتغيرات المتاحة: {name} {remaining} {total} {paid} {dueDate} {shopName}</p>
+        <label class="field-label">اسم المحل</label>
+        <input type="text" id="shopNameInput" class="input" placeholder="اسم محلك">
+        <button class="btn-primary full-width" id="btnSaveTemplate">حفظ القالب</button>
+        <h3 class="section-title">معاينة</h3>
+        <div class="preview-box" id="templatePreview"></div>
+      </div>
+
+      <!-- التذكير التلقائي -->
+      <div id="tab-auto" class="tab-pane hidden">
+        <label class="switch-row">
+          <span>تفعيل التذكير التلقائي عند فتح التطبيق</span>
+          <input type="checkbox" id="autoReminderEnabled">
+        </label>
+        <label class="field-label">تذكير قبل الاستحقاق بعدد أيام</label>
+        <input type="number" id="daysBeforeInput" class="input" min="0" value="1">
+        <label class="field-label">تذكير بعد التأخر بعدد أيام</label>
+        <input type="number" id="daysAfterInput" class="input" min="0" value="3">
+        <button class="btn-primary full-width" id="btnSaveAutoSettings">حفظ الإعدادات</button>
+      </div>
+    </section>
+
+    <!-- ==================== التقارير ==================== -->
+    <section id="page-reports" class="page hidden">
+      <div class="stats-grid">
+        <div class="stat-card teal"><span class="stat-label">إجمالي الديون</span><span class="stat-value" id="repTotalDebt">0</span></div>
+        <div class="stat-card green"><span class="stat-label">إجمالي المدفوع</span><span class="stat-value" id="repTotalPaid">0</span></div>
+        <div class="stat-card red"><span class="stat-label">إجمالي المتبقي</span><span class="stat-value" id="repTotalRemaining">0</span></div>
+        <div class="stat-card amber"><span class="stat-label">عدد المتأخرة</span><span class="stat-value" id="repOverdueCount">0</span></div>
+        <div class="stat-card blue"><span class="stat-label">مستحقة اليوم</span><span class="stat-value" id="repDueToday">0</span></div>
+        <div class="stat-card purple"><span class="stat-label">مستحقة هذا الأسبوع</span><span class="stat-value" id="repDueWeek">0</span></div>
+        <div class="stat-card indigo"><span class="stat-label">مستحقة هذا الشهر</span><span class="stat-value" id="repDueMonth">0</span></div>
+      </div>
+      <h3 class="section-title">الأكثر مديونية</h3>
+      <div id="repTopDebtors" class="list-container"></div>
+      <button class="btn-outline full-width" id="btnExportExcel">📊 تصدير Excel (CSV)</button>
+    </section>
+
+    <!-- ==================== الإعدادات ==================== -->
+    <section id="page-settings" class="page hidden">
+      <h3 class="section-title">المظهر</h3>
+      <label class="switch-row">
+        <span>الوضع الليلي</span>
+        <input type="checkbox" id="settingsDarkMode">
+      </label>
+
+      <h3 class="section-title">التطبيق</h3>
+      <button class="settings-item" id="btnInstallApp">⬇️ تثبيت التطبيق على الهاتف</button>
+
+      <h3 class="section-title">الأمان</h3>
+      <button class="settings-item" id="btnSetPin">🔒 تعيين / تغيير رمز PIN</button>
+      <button class="settings-item danger" id="btnRemovePin">🔓 إلغاء قفل التطبيق</button>
+
+      <h3 class="section-title">النسخ الاحتياطي</h3>
+      <button class="settings-item" id="btnBackupExport">💾 تصدير نسخة احتياطية (JSON)</button>
+      <button class="settings-item" id="btnBackupImport">📂 استعادة نسخة احتياطية</button>
+      <input type="file" id="backupFileInput" accept="application/json" class="hidden">
+
+      <h3 class="section-title">اسم المحل</h3>
+      <input type="text" id="settingsShopName" class="input" placeholder="اسم محلك (يظهر في رسائل التذكير)">
+      <button class="btn-primary full-width" id="btnSaveShopName">حفظ</button>
+
+      <h3 class="section-title">حول التطبيق</h3>
+      <p class="hint">مذكّر الديون — إصدار 1.0.0<br>جميع بياناتك محفوظة محليًا على جهازك فقط ولا يتم إرسالها لأي سيرفر.</p>
+    </section>
+
+  </main>
+
+  <!-- شريط التنقل السفلي -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-page="dashboard"><span class="nav-icon">🏠</span><span>الرئيسية</span></button>
+    <button class="nav-btn" data-page="customers"><span class="nav-icon">👥</span><span>الزبائن</span></button>
+    <button class="nav-btn" data-page="debts"><span class="nav-icon">💵</span><span>الديون</span></button>
+    <button class="nav-btn" data-page="reminders"><span class="nav-icon">📲</span><span>التذكيرات</span></button>
+    <button class="nav-btn" data-page="reports"><span class="nav-icon">📈</span><span>التقارير</span></button>
+    <button class="nav-btn" data-page="settings"><span class="nav-icon">⚙️</span><span>الإعدادات</span></button>
+  </nav>
+</div>
+
+<!-- ============ نافذة: إضافة زبون ============ -->
+<div id="modalAddCustomer" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-header"><h3>إضافة زبون جديد</h3><button class="icon-btn close-modal">✕</button></div>
+    <div class="modal-body">
+      <label class="field-label">اسم الزبون *</label>
+      <input type="text" id="newCustomerName" class="input" placeholder="مثال: أحمد محمد">
+      <label class="field-label">رقم الهاتف *</label>
+      <input type="tel" id="newCustomerPhone" class="input" placeholder="07701234567">
+      <div class="field-error hidden" id="phoneError">رقم الهاتف العراقي غير صحيح. مثال: 07701234567</div>
+      <label class="field-label">المحافظة</label>
+      <input type="text" id="newCustomerGov" class="input" placeholder="مثال: بغداد">
+      <label class="field-label">ملاحظات</label>
+      <textarea id="newCustomerNotes" class="textarea" rows="3"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary full-width" id="btnSaveCustomer">حفظ الزبون</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ نافذة: إضافة دين ============ -->
+<div id="modalAddDebt" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-header"><h3>إضافة دين</h3><button class="icon-btn close-modal">✕</button></div>
+    <div class="modal-body">
+      <label class="field-label">الزبون *</label>
+      <select id="debtCustomerSelect" class="select full-width"></select>
+      <label class="field-label">مبلغ الدين (د.ع) *</label>
+      <input type="number" id="debtAmount" class="input" min="0" placeholder="0">
+      <label class="field-label">تاريخ الاستحقاق *</label>
+      <input type="date" id="debtDueDate" class="input">
+      <label class="field-label">ملاحظات</label>
+      <textarea id="debtNotes" class="textarea" rows="2"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary full-width" id="btnSaveDebt">حفظ الدين</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ نافذة: تسجيل دفعة ============ -->
+<div id="modalPayment" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-header"><h3>تسجيل دفعة</h3><button class="icon-btn close-modal">✕</button></div>
+    <div class="modal-body">
+      <p class="hint" id="paymentRemainingHint"></p>
+      <label class="field-label">المبلغ المدفوع (د.ع) *</label>
+      <input type="number" id="paymentAmount" class="input" min="0" placeholder="0">
+      <label class="field-label">ملاحظات</label>
+      <textarea id="paymentNotes" class="textarea" rows="2"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary full-width" id="btnConfirmPayment">تأكيد الدفعة</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ نافذة: تعيين PIN ============ -->
+<div id="modalSetPin" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-header"><h3>تعيين رمز PIN</h3><button class="icon-btn close-modal">✕</button></div>
+    <div class="modal-body">
+      <label class="field-label">أدخل رمز مكوّن من 4 أرقام</label>
+      <input type="password" id="newPinInput" class="input" maxlength="4" inputmode="numeric" placeholder="••••">
+      <label class="field-label">تأكيد الرمز</label>
+      <input type="password" id="confirmPinInput" class="input" maxlength="4" inputmode="numeric" placeholder="••••">
+      <div class="field-error hidden" id="pinSetupError">الرمزان غير متطابقين أو غير صحيحين</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary full-width" id="btnConfirmSetPin">حفظ الرمز</button>
+    </div>
+  </div>
+</div>
+
+<!-- تنبيه عام (Toast) -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="js/utils.js"></script>
+<script src="js/db.js"></script>
+<script src="js/customers.js"></script>
+<script src="js/debts.js"></script>
+<script src="js/whatsapp.js"></script>
+<script src="js/reports.js"></script>
+<script src="js/backup.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
